@@ -19,7 +19,7 @@ class MemberJpaRepositoryTest {
     @Test
     @DisplayName("Member 를 저장하면 저장을 시도한 Member 와 Repository 에 저장된 Member 가 일치해야 한다.")
     void saveAndFindTest() {
-        Member memberA = new Member("memberA");
+        Member memberA = new Member("memberA", 10, null);
 
         Member saveMember = memberJpaRepository.save(memberA);
         Member findMember = memberJpaRepository.find(saveMember.getId());

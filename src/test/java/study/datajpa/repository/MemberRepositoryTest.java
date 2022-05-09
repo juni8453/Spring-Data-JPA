@@ -16,7 +16,7 @@ class MemberRepositoryTest {
 
     @Test
     public void testMember() {
-        Member memberA = new Member("memberA");
+        Member memberA = new Member("memberA", 10, null);
         Member savedMember = memberRepository.save(memberA);
 
         // 있을 수도 있고 없을 수도 있기 때문에 JPA 에서는 기본적으로 Optional 로 제공한다.
