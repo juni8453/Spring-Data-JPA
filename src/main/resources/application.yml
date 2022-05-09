@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    url: jdbc:h2:tcp://localhost/~/test
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+### JPA 설정
+  jpa:
+    hibernate:
+      ddl-auto: create # 어플 로딩 시점에 모든 table drop 후 새로 생성
+    properties:
+      hibernate:
+        format_sql: true # 쿼리 포맷팅
+
+logging:
+  level:
+    org.hibernate.SQL: debug
+    #org.hibernate.type: trace
