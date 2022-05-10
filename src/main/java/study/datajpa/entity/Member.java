@@ -6,11 +6,17 @@ import javax.persistence.*;
 
 @Entity
 @Getter
+@Setter
 // JPA 의 프록시 기술을 사용하기 위해 좀 열어놔야 함.
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 
 // 연관관계 필드 (여기서는 team) 은 toString 하지 마라. (무한 루프)
 @ToString(of = {"id", "username", "age"})
+
+// 이름 아무거나 해도되는데 관례는 엔티티 명. ~
+@NamedQuery(
+        name = "Member.findByUsername",
+        query = "Select m From Member As m Where m.username = :username")
 public class Member {
 
     @Id
@@ -33,6 +39,11 @@ public class Member {
         if (team != null) {
             changeTeam(team);
         }
+    }
+
+    public Member(String username, int age) {
+        this.username = username;
+        this.age = age;
     }
 
     // 양방향 매핑에서 다(Member) 객체는, 일(Team) 을 변경할 수 있다.
