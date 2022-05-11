@@ -12,6 +12,8 @@ import study.datajpa.dto.MemberDto;
 import study.datajpa.entity.Member;
 import study.datajpa.entity.Team;
 
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -25,6 +27,9 @@ class JpaRepositoryTest {
     @Autowired MemberRepository memberRepository;
     @Autowired MemberJpaRepository memberJpaRepository;
     @Autowired TeamRepository teamRepository;
+
+    @PersistenceContext
+    EntityManager em;
 
     @Test
     public void testMember() {
@@ -218,34 +223,34 @@ class JpaRepositoryTest {
 
         // TODO 반환타입이 Slice 라면 totalCount 쿼리를 날리지 않는다.
         //  PageRequest 에서 page 0, size 3 으로 구현했는데, 눈속임용으로 size 3 에 1을 더한 4개의 데이터를 가지고 온다.
-        Slice<Member> slice = memberRepository.findByAgeSlice(age, pageRequest);
+//        Slice<Member> slice = memberRepository.findByAgeSlice(age, pageRequest);
 
         // TODO List 형태로도 반환받을 수 있다. 여기서도 따로 totalCount 쿼리는 날아가지 않는다.
         //  List<> 반환타입은 Page<>, Slice<> 타입의 메서드를 사용할 수 없다.
         //  데이터만 10개 끊어서 가져오고 싶고 다른 페이지가 있는지 없는지, 몇 페이지인지 이런거는 상관없을 때 쓰면 유용하다.
-        List<Member> list = memberRepository.findByAgeList(age, pageRequest);
+//        List<Member> list = memberRepository.findByAgeList(age, pageRequest);
 
         // 현재 페이지의 데이터가 담기는 List
         List<Member> content = page.getContent();
-        List<Member> sliceContent = slice.getContent();
+//        List<Member> sliceContent = slice.getContent();
 
         // 모든 데이터의 totalCount
         long totalElements = page.getTotalElements();
 
         // 현재 페이지가 몇 페이지인지 ?
         int pageNumber = page.getNumber();
-        int sliceNumber = slice.getNumber();
+//        int sliceNumber = slice.getNumber();
 
         // 전체 페이지가 몇 페이지인지 ?
         int totalPageCount = page.getTotalPages();
 
         // 현재 페이지가 첫 페이지인지 ?
         boolean first = page.isFirst();
-        boolean sliceFirst = slice.isFirst();
+//        boolean sliceFirst = slice.isFirst();
 
         // 다음 페이지가 있는지 ?
         boolean hasNextPage = page.hasNext();
-        boolean hasNextSlice = slice.hasNext();
+//        boolean hasNextSlice = slice.hasNext();
 
         assertThat(content.size()).isEqualTo(3);
         assertThat(totalElements).isEqualTo(5);
@@ -254,4 +259,83 @@ class JpaRepositoryTest {
         assertThat(first).isTrue();
         assertThat(hasNextPage).isTrue();
     }
+
+    @Test
+    public void bulkUpdate() {
+        // JpaRepository 의 save() 내부의 em.persist() 에 의해 영속성 컨텍스트에 추가된다.
+        memberJpaRepository.save(new Member("member1", 10));
+        memberJpaRepository.save(new Member("member2", 19));
+        memberJpaRepository.save(new Member("member3", 20));
+        memberJpaRepository.save(new Member("member4", 21));
+        memberJpaRepository.save(new Member("member5", 40));
+
+        //when
+        int resultCount = memberJpaRepository.bulkAgePlus(20);
+
+        // 벌크성 연산은 영속성 컨텍스트를 무시하고 바로 DB 에 값을 때려넣는다.
+        // 따라서 벌크 연산으로 DB 에 값이 들어간 이후 영속성 컨텍스트와 DB 값이 맞지 않을 수 있기 때문에
+        // flush() 를 통해 영속성 컨텍스트에 쌓여있는 객체들을 DB 에 보내고, clear() 를 통해 영속성 컨텍스트를 지워줘야한다.
+        // 영속성 컨텍스트 내부에 값이 없어야 다시 조회하거나 할 때 DB 값을 조회하기 때문 (영속성 컨텍스트 값이 있다면 DB 까지 안가니까)
+        // @Modifying(clearAutomatically = true) 옵션을 통해 자동으로 설정할 수 있다.
+        // em.flush();
+        // em.clear();
+
+        //then
+        assertThat(resultCount).isEqualTo(3);
+
+    }
+
+    @Test
+    public void findMemberLazy() {
+        //given
+        Team teamA = new Team("teamA");
+        Team teamB = new Team("teamB");
+        teamRepository.save(teamA);
+        teamRepository.save(teamB);
+
+        Member member1 = new Member("member1", 10, teamA);
+        Member member2 = new Member("member2", 10, teamB);
+        memberRepository.save(member1);
+        memberRepository.save(member2);
+
+        // 영속성 컨텍스트 된 객체들을 깔끔하게 비워준다.
+        em.clear();
+
+        //when
+        // Select 로 Member 객체만 가져오는 쿼리 가져옴
+        // findAll() 은 fetch join 이 아니다.
+//        List<Member> members = memberRepository.findAll();
+
+        // fetch 조인 형식으로 Member 객체에 연관된 Team 을 한 번에 가져올 수 있다.
+        // TODO 참고) JPQL 은 영속성 컨텍스트에서 엔티티를 먼저 찾지 않고 항상 DB 에 SQL 을 실행해 결과를 조회한다.
+        //  1. JPQL 을 호출 -> DB 에 우선적으로 조회
+        //  2. 조회한 값을 영속성 컨텍스트에 저장 (flush() 발생)
+        //  3. 영속성 컨텍스트에 조회할 때 이미 존재하는 데이터가 있다면 데이터를 버린다.
+        //  즉, JPQL 입장에서 즉시, 지연 로딩과 같은 패치 전략을 무시하고 JPQL 만 사용해 SQL 을 생성한다.
+        List<Member> members = memberRepository.findMemberFetchJoin();
+
+        for (Member member : members) {
+            System.out.println("member.getUsername() = " + member.getUsername());
+            System.out.println("member.team = " + member.getTeam().getName());
+        }
+    }
+
+    @Test
+    public void queryHint() {
+        Member member = new Member("member1", 10);
+        memberRepository.save(member);
+
+        // flush() 를 호출해 영속성 컨텍스트의 값들을 DB 애 보내준다 (동기화)
+        em.flush();
+        em.clear();
+
+        // Member findMember = memberRepository.findById(member.getId()).get();
+        Member findMember = memberRepository.findReadOnlyByUsername("member1");
+
+        // 이제 update 쿼리 안나감 (readOnly 이기 때문)
+        findMember.setUsername("member2");
+
+        em.flush();
+    }
+
 }

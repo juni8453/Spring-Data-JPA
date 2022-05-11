@@ -3,12 +3,13 @@ package study.datajpa.repository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
 import study.datajpa.dto.MemberDto;
 import study.datajpa.entity.Member;
 
+import javax.persistence.Entity;
+import javax.persistence.QueryHint;
 import java.util.List;
 import java.util.Optional;
 
@@ -70,4 +71,31 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
 //    Slice<Member> findByAge(int age, Pageable pageable);
 //
 //    List<Member> findByAge(int age, Pageable pageable);
+
+    // -------------
+
+    // 요놈이 있어야 executeUpdate 가 호출된다.
+    // clearAutomatically 옵션으로 벌크 쿼리 이후 영속성 컨텍스트를 날려줘야 한다.
+    @Modifying(clearAutomatically = true)
+    @Query("update Member m set m.age = m.age + 1 where m.age >= :age")
+    int bulkAgePlus(@Param("age") int age);
+
+    // Member 객체와 연관관계가 있는 Team 을 fetch !
+    @Query("select m from Member As m left join fetch m.team")
+    List<Member> findMemberFetchJoin();
+
+    // Member 와 Team 을 한 번에 조회하고 싶다! JPQL 을 짜기는 귀찮다.
+    // 그럴 땐 JpaRepository 인터페이스의 기본 메서드를 Override 해서 사용하면 된다.
+    // attributePaths 속성으로 객체의 JoinColumn 객체 이름을 적어준다.
+    @Override
+    @EntityGraph(attributePaths = {"team"})
+    List<Member> findAll();
+
+    // 그냥 이렇게 쿼리를 짜되, fetch join 은 짜기 귀찮을 때는 ..
+    @EntityGraph(attributePaths = {"team"})
+    @Query("select m from Member As m")
+    List<Member> findMemberEntityGraph();
+
+    @QueryHints(value = @QueryHint(name = "org.hibernate.readOnly", value = "true"))
+    Member findReadOnlyByUsername(String username);
 }
