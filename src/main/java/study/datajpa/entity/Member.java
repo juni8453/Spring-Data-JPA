@@ -17,7 +17,9 @@ import javax.persistence.*;
 @NamedQuery(
         name = "Member.findByUsername",
         query = "Select m From Member As m Where m.username = :username")
-public class Member {
+
+// 등록일, 수정일 등 BaseEntity 를 사용하기 위해 상속받는다.
+public class Member extends JpaBaseEntity {
 
     @Id
     @GeneratedValue

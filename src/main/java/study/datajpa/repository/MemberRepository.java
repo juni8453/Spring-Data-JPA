@@ -8,12 +8,12 @@ import org.springframework.data.repository.query.Param;
 import study.datajpa.dto.MemberDto;
 import study.datajpa.entity.Member;
 
-import javax.persistence.Entity;
 import javax.persistence.QueryHint;
 import java.util.List;
 import java.util.Optional;
 
-public interface MemberRepository extends JpaRepository<Member, Long> {
+// MemberRepositoryCustom 또한 상속받는 걸로 수정
+public interface MemberRepository extends JpaRepository<Member, Long>, MemberRepositoryCustom {
 
     // 쿼리 메서드 사용
     List<Member> findByUsernameAndAgeGreaterThan(String username, int age);
